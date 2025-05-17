@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from contextlib import suppress
 from typing import Literal
 
 from cli.ui import SeestarUI
@@ -16,22 +17,30 @@ async def runner(host: str, port: int):
 
     await client.connect()
 
-    while True:
-        msg: CommandResponse[GetTimeResponse] = await client.send_and_recv(GetTime())
-        #print(f'---> Received: {msg}')
-        print('')
-        await asyncio.sleep(5)
+    #while True:
+    #    #msg: CommandResponse[GetTimeResponse] = await client.send_and_recv(GetTime())
+    #    #print(f'---> Received: {msg}')
+    #    print('')
+    #    #await asyncio.sleep(5)
+
+    while client.is_connected:
+        msg = await client.recv()
+        if msg is not None:
+            print(f'----> Received: {msg}')
+        with suppress(IndexError):
+            event = client.recent_events.popleft()
+            print(f'----> Event: {event}')
+        await asyncio.sleep(0.1)
 
     #msg: CommandResponse[dict] = await client.send_and_recv(GetWheelPosition())
     #print(f'Received: {msg}')
-    #await asyncio.sleep(1)
 
     await client.disconnect()
     await asyncio.sleep(1)
 
 
 def main(host: str, port: int):
-    # app = SeestarUI()
+    # app = SeestarUI(host, port)
     # app.run()
     asyncio.run(runner(host, port))
 
