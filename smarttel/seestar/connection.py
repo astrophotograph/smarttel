@@ -1,6 +1,6 @@
 """Establish connection with Seestar."""
 import asyncio
-from asyncio import StreamReader, StreamWriter
+from asyncio import StreamReader, StreamWriter, IncompleteReadError
 from pydantic import BaseModel
 
 class SeestarConnection(BaseModel, arbitrary_types_allowed=True):
@@ -31,6 +31,11 @@ class SeestarConnection(BaseModel, arbitrary_types_allowed=True):
         self.writer.write(data.encode())
         await self.writer.drain()
 
-    async def read(self) -> str:
+    async def read(self) -> str | None:
         """Read data from Seestar."""
-        return (await self.reader.readuntil()).decode().strip()
+        try:
+            data = await self.reader.readuntil()
+            return data.decode().strip()
+        except IncompleteReadError as e:
+            print(f"Error while reading from {self}: {e}")
+            await self.close()
