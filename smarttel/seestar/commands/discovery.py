@@ -102,17 +102,19 @@ async def select_device_and_connect(host=None, port=None):
     if not host or not port:
         # Discover devices
         print("Discovering Seestar devices...")
-        devices = await discover_seestars()
+        devices = await discover_seestars(timeout=3)
         
         if not devices:
             print("No Seestar devices found. Exiting.")
             return
         
         # Set up the device picker in the app
+        print("setting devices")
         app.set_device_picker(devices)
-    
+        print("set devices...")
+
     # Run the combined app - it will handle both device picking and connection
-    app.run()
+    await app.run_async()
 
 
 @click.command()
