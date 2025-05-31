@@ -1,10 +1,12 @@
 import asyncio
 import sys
+import click
 from contextlib import suppress
 
 from cli.ui import SeestarUI
 from smarttel.seestar.client import SeestarClient
 from smarttel.seestar.commands.common import CommandResponse
+from smarttel.seestar.commands.discovery import select_device_and_connect
 from smarttel.seestar.commands.simple import GetViewState
 
 
@@ -36,11 +38,21 @@ async def runner(host: str, port: int):
     await client.disconnect()
     await asyncio.sleep(1)
 
+@click.command()
+@click.option("--host", help="Seestar host address")
+@click.option("--port", type=int, default=4700, help="Seestar port (default: 4700)")
+def main(host, port):
+    """Connect to a Seestar device, with optional device discovery."""
+    select_device_and_connect(host, port)
 
-def main(host: str, port: int):
-    app = SeestarUI(host, port)
-    app.run()
-    # asyncio.run(runner(host, port))
 
 if __name__ == "__main__":
-    main(sys.argv[1], int(sys.argv[2]))
+    main()
+
+# def main(host: str, port: int):
+#     app = SeestarUI(host, port)
+#     app.run()
+#     # asyncio.run(runner(host, port))
+#
+# if __name__ == "__main__":
+#     main(sys.argv[1], int(sys.argv[2]))
