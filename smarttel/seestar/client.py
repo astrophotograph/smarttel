@@ -44,9 +44,10 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
     async def _heartbeat(self):
         while True:
             if self.is_connected:
-                print(f"Pinging {self}")
+                #print(f"Pinging {self}")
                 _ = await self.send(GetTime())
-            await asyncio.sleep(7) # todo : increase this
+            # todo : decrease sleep time to 1 second and, instead, check next heartbeat time
+            await asyncio.sleep(11)
 
     async def connect(self):
         await self.connection.open()
@@ -65,6 +66,7 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
 
     async def send(self, data: str | BaseModel):
         # todo : do connected check...
+        # todo : set "next heartbeat" time, and then in the heartbeat task, check the value
         if isinstance(data, BaseModel):
             if data.id is None:
                 data.id = self.id

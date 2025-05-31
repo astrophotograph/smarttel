@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "netifaces>=0.11.0",
     "pydantic>=2.11.4",
     "textual-dev>=1.7.0",
     "textual[syntax]>=3.2.0",

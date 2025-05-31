@@ -28,10 +28,10 @@ class SeestarUI(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
-        with Container():
-            with VerticalScroll():
-                yield Static(id="response")
-                yield Static(id="events")
+        # with Container():
+        #     with VerticalScroll():
+        yield Static(id="response")
+        yield Static(id="events")
         yield Footer()
 
     def action_toggle_dark(self) -> None:
@@ -56,18 +56,23 @@ class SeestarUI(App):
         response_box = self.query_one("#response", Static)
         event_box = self.query_one("#events", Static)
         i = 0
-        while self.client.is_connected:
+        while True:
             i += 1
-            msg = await self.client.recv()
-            if msg is not None:
-                print(f'----> Received: {msg}')
-                # self.responses.append(str(msg))
-                response_box.update(str(msg))
-            with suppress(IndexError):
-                ev = self.client.recent_events.popleft()
-                event_box.update(str(ev))
-                # self.events.append(str(ev))
-                # event_box.update("\n".join(self.events) + "\n")
+            if self.client.is_connected:
+                try:
+                    msg = await self.client.recv()
+                    if msg is not None:
+                        print(f'----> UI msg Received: {msg}')
+                        # self.responses.append(str(msg))
+                        response_box.update(str(msg))
+                    with suppress(IndexError):
+                        ev = self.client.recent_events.popleft()
+                        print(f'----> UI event Received: {ev}')
+                        event_box.update(str(ev))
+                        #self.events.append(str(ev))
+                        #event_box.update("\n".join(self.events) + "\n")
+                except Exception as e:
+                    pass
             self.update_title(i)
             await asyncio.sleep(0.1)
 

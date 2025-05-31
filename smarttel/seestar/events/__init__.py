@@ -64,6 +64,7 @@ class PiStatusEvent(BaseEvent):
     temp: float | None = None
     charger_status: Literal['Discharging'] | None = None
     charge_online: bool | None = None
+    battery_capacity: int | None = None
 
 
 class RTSPEvent(BaseEvent):

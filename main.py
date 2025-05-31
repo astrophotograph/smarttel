@@ -1,15 +1,11 @@
 import asyncio
 import sys
 from contextlib import suppress
-from typing import Literal
 
 from cli.ui import SeestarUI
 from smarttel.seestar.client import SeestarClient
 from smarttel.seestar.commands.common import CommandResponse
-from smarttel.seestar.commands.parameterized import IscopeStopView, StopStage
-from smarttel.seestar.commands.simple import GetTime, GetTimeResponse, GetCameraInfo, GetCameraInfoResponse, \
-    GetCameraState, GetDiskVolume, GetDeviceState, GetViewState, GetSetting, GetUserLocation, ScopeGetEquCoord, \
-    ScopeGetRaDecCoord, GetAnnotatedResult, GetFocuserPosition, GetWheelSetting, GetWheelState, GetWheelPosition
+from smarttel.seestar.commands.simple import GetViewState
 
 
 async def runner(host: str, port: int):
@@ -17,6 +13,8 @@ async def runner(host: str, port: int):
 
     await client.connect()
 
+    msg: CommandResponse[dict] = await client.send_and_recv(GetViewState())
+    print(f'Received GetViewState: {msg}')
     #while True:
     #    #msg: CommandResponse[GetTimeResponse] = await client.send_and_recv(GetTime())
     #    #print(f'---> Received: {msg}')
@@ -40,9 +38,9 @@ async def runner(host: str, port: int):
 
 
 def main(host: str, port: int):
-    # app = SeestarUI(host, port)
-    # app.run()
-    asyncio.run(runner(host, port))
+    app = SeestarUI(host, port)
+    app.run()
+    # asyncio.run(runner(host, port))
 
 if __name__ == "__main__":
     main(sys.argv[1], int(sys.argv[2]))

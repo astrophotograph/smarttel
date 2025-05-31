@@ -8,7 +8,7 @@ class SetControlValue(BaseCommand):
     method: Literal["set_control_value"] = "set_control_value"
     # [gain, int]
 
-class SettingParameters(BaseModel):
+class SettingParameters(BaseCommand):
     """Parameters for the SetSetting command."""
     exp_ms: Optional[dict[str, int]]  # values: stack_l, continuous
     ae_bri_percent: Optional[int]
