@@ -7,9 +7,9 @@ from typing import TypeVar, Literal
 from pydantic import BaseModel
 
 from smarttel.seestar.commands.common import CommandResponse
-from smarttel.seestar.commands.simple import GetTime, GetDeviceState
+from smarttel.seestar.commands.simple import GetTime, GetDeviceState, GetViewState
 from smarttel.seestar.connection import SeestarConnection
-from smarttel.seestar.events import EventTypes, PiStatusEvent
+from smarttel.seestar.events import EventTypes, PiStatusEvent, AnnotateResult
 
 U = TypeVar("U")
 
@@ -22,6 +22,8 @@ class SeestarStatus(BaseModel):
     battery_capacity: int | None = None
     stacked_frame: int = 0
     dropped_frame: int = 0
+    target_name: str = ""
+    annotate: AnnotateResult | None = None
 
     def reset(self):
         self.temp = None
@@ -30,6 +32,8 @@ class SeestarStatus(BaseModel):
         self.battery_capacity = None
         self.stacked_frame = 0
         self.dropped_frame = 0
+        self.target_name = ""
+        self.annotate = None
 
 
 class ParsedEvent(BaseModel):
@@ -65,6 +69,14 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
             # todo : decrease sleep time to 1 second and, instead, check next heartbeat time
             await asyncio.sleep(5)
 
+    def process_view_state(self, response: CommandResponse[dict]):
+        """Process view state."""
+        print(f"Processing view state from {self}: {response}")
+        if response.result is not None:
+            self.status.target_name = response.result['View']['target_name']
+        else:
+            print(f"Error while processing view state from {self}: {response}")
+
     def process_device_state(self, response: CommandResponse[dict]):
         """Process device state."""
         print(f"Processing device state from {self}: {response}")
@@ -89,6 +101,11 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
         response: CommandResponse[dict] = await self.send_and_recv(GetDeviceState())
 
         self.process_device_state(response)
+
+        response = await self.send_and_recv(GetViewState())
+        print(f"Received GetViewState: {response}")
+
+        self.process_view_state(response)
 
         if self.debug:
             print(f"Connected to {self}")
@@ -137,6 +154,8 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
                         self.status.stacked_frame = parser.event.stacked_frame
                     if self.status.dropped_frame is not None:
                         self.status.dropped_frame = parser.event.dropped_frame
+                case 'Annotate':
+                    self.status.annotate = AnnotateResult(**parser.event.result)
         except Exception as e:
             print(f"Error while parsing event from {self}: {event_str} {type(e)} {e}")
 
