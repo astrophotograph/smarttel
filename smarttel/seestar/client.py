@@ -17,7 +17,7 @@ U = TypeVar("U")
 class SeestarStatus(BaseModel):
     """Seestar status."""
     temp: float | None = None
-    charger_status: Literal['Discharging'] | None = None
+    charger_status: Literal['Discharging', 'Charging', 'Full'] | None = None
     charge_online: bool | None = None
     battery_capacity: int | None = None
     stacked_frame: int = 0
