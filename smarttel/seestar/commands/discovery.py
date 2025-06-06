@@ -109,9 +109,7 @@ async def select_device_and_connect(host=None, port=None):
             return
         
         # Set up the device picker in the app
-        print("setting devices")
         app.set_device_picker(devices)
-        print("set devices...")
 
     # Run the combined app - it will handle both device picking and connection
     await app.run_async()

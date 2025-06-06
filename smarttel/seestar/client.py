@@ -1,14 +1,15 @@
 import asyncio
 import collections
 import json
+import logging
 from typing import TypeVar, Literal
 
 from pydantic import BaseModel
 
 from smarttel.seestar.commands.common import CommandResponse
-from smarttel.seestar.commands.simple import GetTime
+from smarttel.seestar.commands.simple import GetTime, GetDeviceState
 from smarttel.seestar.connection import SeestarConnection
-from smarttel.seestar.events import EventTypes
+from smarttel.seestar.events import EventTypes, PiStatusEvent
 
 U = TypeVar("U")
 
@@ -16,6 +17,19 @@ U = TypeVar("U")
 class SeestarStatus(BaseModel):
     """Seestar status."""
     temp: float | None = None
+    charger_status: Literal['Discharging'] | None = None
+    charge_online: bool | None = None
+    battery_capacity: int | None = None
+    stacked_frame: int = 0
+    dropped_frame: int = 0
+
+    def reset(self):
+        self.temp = None
+        self.charger_status = None
+        self.charge_online = None
+        self.battery_capacity = None
+        self.stacked_frame = 0
+        self.dropped_frame = 0
 
 
 class ParsedEvent(BaseModel):
@@ -42,18 +56,40 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
         self.connection = SeestarConnection(host=host, port=port)
 
     async def _heartbeat(self):
+        # todo : properly check if is_connected!!
+        await asyncio.sleep(5)
         while True:
             if self.is_connected:
-                #print(f"Pinging {self}")
-                _ = await self.send(GetTime())
+                print(f"Pinging {self}")
+                _ = await self.send_and_recv(GetTime())
             # todo : decrease sleep time to 1 second and, instead, check next heartbeat time
-            await asyncio.sleep(11)
+            await asyncio.sleep(5)
+
+    def process_device_state(self, response: CommandResponse[dict]):
+        """Process device state."""
+        print(f"Processing device state from {self}: {response}")
+        if response.result is not None:
+            pi_status = PiStatusEvent(**response.result['pi_status'], Timestamp=response.Timestamp)
+            self.status.temp = pi_status.temp
+            self.status.charger_status = pi_status.charger_status
+            self.status.charge_online = pi_status.charge_online
+            self.status.battery_capacity = pi_status.battery_capacity
+        else:
+            print(f"Error while processing device state from {self}: {response}")
 
     async def connect(self):
         await self.connection.open()
         self.is_connected = True
+        self.status.reset()
 
         self.background_task = asyncio.create_task(self._heartbeat())
+
+        # Upon connect, grab current status
+
+        response: CommandResponse[dict] = await self.send_and_recv(GetDeviceState())
+
+        self.process_device_state(response)
+
         if self.debug:
             print(f"Connected to {self}")
 
@@ -76,16 +112,31 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
 
     def _handle_event(self, event_str: str):
         """Parse an event."""
-        parsed = json.loads(event_str)
+        if self.debug:
+            print(f"Handling event from {self}: {event_str}")
         try:
+            parsed = json.loads(event_str)
             parser: ParsedEvent = ParsedEvent(event=parsed)
             # print(f"Received event from {self}: {type(parser.event)} {parser}")
-            print(f'Received event from {self}: {type(parser.event)}')
+            print(f'Received event from {self}: {parser.event.Event} {type(parser.event)}')
             self.recent_events.append(parser.event)
-            if parser.event.Event == Literal['PiStatus']:
-                pi_status = parser.event
-                if pi_status.temp is not None:
-                    self.status = pi_status.temp
+            match parser.event.Event:
+                case 'PiStatus':
+                    pi_status = parser.event
+                    if pi_status.temp is not None:
+                        self.status.temp = pi_status.temp
+                    if pi_status.charger_status is not None:
+                        self.status.charger_status = pi_status.charger_status
+                    if pi_status.charge_online is not None:
+                        self.status.charge_online = pi_status.charge_online
+                    if pi_status.battery_capacity is not None:
+                        self.status.battery_capacity = pi_status.battery_capacity
+                case 'Stack':
+                    print("Updating stacked frame and dropped frame")
+                    if self.status.stacked_frame is not None:
+                        self.status.stacked_frame = parser.event.stacked_frame
+                    if self.status.dropped_frame is not None:
+                        self.status.dropped_frame = parser.event.dropped_frame
         except Exception as e:
             print(f"Error while parsing event from {self}: {event_str} {type(e)} {e}")
 
@@ -105,7 +156,7 @@ class SeestarClient(BaseModel, arbitrary_types_allowed=True):
         try:
             while 'jsonrpc' not in response:
                 response = await self.connection.read()
-                #if self.debug:
+                # if self.debug:
                 #    print(f"Received data from {self}: {response}")
                 if response is None:
                     await self.disconnect()
