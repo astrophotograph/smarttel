@@ -1,3 +1,5 @@
+NOTE: this has been superceded by pyscopinator
+
 # smarttel
 
 Send commands to a Smart Telescope.
